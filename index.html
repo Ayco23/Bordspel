@@ -1,471 +1,562 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="theme-color" content="#0f172a" />
-<title>Boter, Kaas en Eieren</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Paint">
+<meta name="theme-color" content="#0b1220">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Paint</title>
 <style>
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg: #0b1220;
+    --bg-2: #111a2e;
+    --panel: #131e3a;
+    --border: #1f2a48;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --accent: #4ade80;
+    --accent-2: #22c55e;
+    --pad: clamp(8px, 2vw, 14px);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
   html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    background: radial-gradient(ellipse at top, #1e293b 0%, #0f172a 60%, #020617 100%);
-    color: #f1f5f9;
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
+    overscroll-behavior: none;
     touch-action: manipulation;
   }
   body {
+    min-height: 100dvh;
+    background: radial-gradient(ellipse at top, #1a2547 0%, var(--bg) 60%), var(--bg);
+    display: flex;
+    justify-content: center;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 600px;
+    min-height: 100dvh;
+    padding:
+      calc(var(--pad) + var(--safe-top))
+      calc(var(--pad) + var(--safe-right))
+      calc(var(--pad) + var(--safe-bot))
+      calc(var(--pad) + var(--safe-left));
     display: flex;
     flex-direction: column;
+    gap: var(--pad);
+  }
+
+  header {
+    display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: max(env(safe-area-inset-top), 16px) 16px max(env(safe-area-inset-bottom), 16px);
-    min-height: 100dvh;
-  }
-  header {
-    width: 100%;
-    text-align: center;
+    gap: 8px;
   }
   h1 {
-    font-size: clamp(20px, 5.5vw, 28px);
-    margin: 4px 0 2px;
-    letter-spacing: 0.5px;
+    margin: 0;
+    font-size: clamp(1.1rem, 4.5vw, 1.5rem);
     font-weight: 700;
-  }
-  .subtitle {
-    font-size: 13px;
-    color: #94a3b8;
-    margin-bottom: 10px;
-  }
-  .scoreboard {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    width: 100%;
-    max-width: 420px;
-    margin: 0 auto 8px;
-  }
-  .score {
-    flex: 1;
-    background: rgba(30, 41, 59, 0.7);
-    border: 1px solid rgba(148, 163, 184, 0.15);
-    border-radius: 14px;
-    padding: 10px 6px;
-    text-align: center;
-    transition: transform 0.2s, border-color 0.2s, background 0.2s;
-  }
-  .score.active {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.12);
-    transform: translateY(-2px);
-  }
-  .score .label { font-size: 12px; color: #94a3b8; }
-  .score .player { font-size: 18px; font-weight: 700; margin: 2px 0; }
-  .score.x .player { color: #f472b6; }
-  .score.o .player { color: #38bdf8; }
-  .score .count { font-size: 22px; font-weight: 800; }
-
-  .board-wrap {
-    width: 100%;
-    max-width: min(92vw, 420px);
-    aspect-ratio: 1 / 1;
-    margin: 8px auto;
-    position: relative;
-  }
-  .board {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 8px;
-    background: transparent;
-  }
-  .cell {
-    background: rgba(30, 41, 59, 0.85);
-    border: 1px solid rgba(148, 163, 184, 0.15);
-    border-radius: 16px;
+    letter-spacing: 0.3px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: clamp(48px, 14vw, 80px);
-    font-weight: 800;
-    cursor: pointer;
-    transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
-    position: relative;
+    gap: 8px;
   }
-  .cell:active { transform: scale(0.96); }
-  .cell.x { color: #f472b6; }
-  .cell.o { color: #38bdf8; }
-  .cell.win {
-    background: rgba(56, 189, 248, 0.18);
-    box-shadow: 0 0 0 2px #38bdf8 inset, 0 0 24px rgba(56, 189, 248, 0.35);
-    animation: pop 0.45s ease;
-  }
-  .cell.x.win {
-    background: rgba(244, 114, 182, 0.18);
-    box-shadow: 0 0 0 2px #f472b6 inset, 0 0 24px rgba(244, 114, 182, 0.35);
-  }
-  .cell.disabled { cursor: default; }
-
-  .mark {
-    display: inline-block;
-    transform: scale(0);
-    animation: appear 0.18s ease forwards;
-  }
-  @keyframes appear {
-    from { transform: scale(0) rotate(-15deg); opacity: 0; }
-    to   { transform: scale(1) rotate(0); opacity: 1; }
-  }
-  @keyframes pop {
-    0%   { transform: scale(1); }
-    50%  { transform: scale(1.06); }
-    100% { transform: scale(1); }
+  h1 .swatch {
+    width: 18px; height: 18px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #f43f5e, #f59e0b 35%, #4ade80 65%, #38bdf8);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
   }
 
   .status {
-    width: 100%;
     text-align: center;
-    font-size: 16px;
-    color: #cbd5e1;
-    min-height: 24px;
-    margin: 4px 0 8px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    min-height: 1.2em;
   }
-  .status strong { color: #f8fafc; }
 
-  .controls {
-    display: flex;
-    gap: 10px;
-    width: 100%;
-    max-width: 420px;
-    margin: 0 auto;
-  }
-  button {
+  .canvas-wrap {
     flex: 1;
-    appearance: none;
-    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+  .canvas-card {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: min(94vw, 58dvh);
+    background: #ffffff;
     border-radius: 14px;
-    padding: 14px 12px;
-    font-size: 15px;
-    font-weight: 600;
-    color: #f8fafc;
-    background: rgba(51, 65, 85, 0.85);
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    cursor: pointer;
-    transition: transform 0.1s, background 0.2s;
-    font-family: inherit;
+    box-shadow:
+      0 0 0 1px var(--border) inset,
+      0 20px 50px rgba(0,0,0,0.4);
+    overflow: hidden;
+    touch-action: none;
   }
-  button:active { transform: scale(0.97); }
-  button.primary {
-    background: linear-gradient(135deg, #38bdf8, #6366f1);
-    border-color: transparent;
-  }
-
-  .mode-switch {
-    display: flex;
-    background: rgba(30, 41, 59, 0.7);
-    border-radius: 12px;
-    padding: 4px;
+  canvas {
+    display: block;
     width: 100%;
-    max-width: 420px;
-    margin: 0 auto 8px;
-    border: 1px solid rgba(148, 163, 184, 0.15);
-  }
-  .mode-switch button {
-    flex: 1;
-    padding: 10px;
-    font-size: 13px;
-    border-radius: 9px;
-    background: transparent;
-    border: none;
-    color: #94a3b8;
-  }
-  .mode-switch button.on {
-    background: rgba(56, 189, 248, 0.15);
-    color: #f8fafc;
+    height: 100%;
+    cursor: crosshair;
   }
 
-  .winline {
-    position: absolute;
-    background: linear-gradient(90deg, #f472b6, #38bdf8);
-    height: 6px;
-    border-radius: 6px;
-    top: 50%;
-    left: 0;
-    transform-origin: 0 50%;
-    box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s;
+  .toolbar {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
-  .winline.show { opacity: 1; }
+
+  .row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .colors {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+    width: 100%;
+  }
+  .swatch-btn {
+    aspect-ratio: 1;
+    min-width: 30px;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.08s ease;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.3);
+  }
+  .swatch-btn:active { transform: scale(0.9); }
+  .swatch-btn.selected {
+    border-color: var(--text);
+    box-shadow:
+      inset 0 -2px 0 rgba(0,0,0,0.15),
+      0 0 0 2px var(--bg-2),
+      0 0 0 4px var(--text);
+  }
+  .swatch-btn.eraser {
+    background: repeating-conic-gradient(#cbd5e1 0% 25%, #f8fafc 0% 50%) 50% / 10px 10px;
+  }
+
+  .size-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+  }
+  .size-row label {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .size-preview {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .size-preview .dot {
+    background: currentColor;
+    border-radius: 50%;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 28px;
+    background: transparent;
+    margin: 0;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 3px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px; height: 22px;
+    margin-top: -8px;
+    background: #fff;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px;
+    background: #fff;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .btn {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    min-height: 44px;
+    cursor: pointer;
+    transition: transform 0.05s ease, background 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-danger { color: #fca5a5; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #062012;
+    border: none;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.7rem;
+    opacity: 0.6;
+  }
 </style>
 </head>
 <body>
-  <header>
-    <h1>Boter, Kaas &amp; Eieren</h1>
-    <div class="subtitle">Drie op een rij wint</div>
-  </header>
+  <div class="app">
+    <header>
+      <h1><span class="swatch"></span>Paint</h1>
+      <div class="status" id="status">Teken met je vinger</div>
+    </header>
 
-  <div style="width:100%;">
-    <div class="mode-switch" role="tablist" aria-label="Spelmodus">
-      <button id="mode-2p" class="on" type="button">2 Spelers</button>
-      <button id="mode-cpu" type="button">Tegen Computer</button>
-    </div>
-
-    <div class="scoreboard">
-      <div class="score x active" id="score-x">
-        <div class="label">Speler</div>
-        <div class="player">✕</div>
-        <div class="count" id="count-x">0</div>
-      </div>
-      <div class="score" id="score-draw">
-        <div class="label">Gelijk</div>
-        <div class="player">—</div>
-        <div class="count" id="count-draw">0</div>
-      </div>
-      <div class="score o" id="score-o">
-        <div class="label">Speler</div>
-        <div class="player">◯</div>
-        <div class="count" id="count-o">0</div>
+    <div class="canvas-wrap">
+      <div class="canvas-card">
+        <canvas id="canvas"></canvas>
       </div>
     </div>
 
-    <div class="board-wrap">
-      <div class="board" id="board" aria-label="Speelbord">
-        <button class="cell" data-i="0" aria-label="Vakje 1"></button>
-        <button class="cell" data-i="1" aria-label="Vakje 2"></button>
-        <button class="cell" data-i="2" aria-label="Vakje 3"></button>
-        <button class="cell" data-i="3" aria-label="Vakje 4"></button>
-        <button class="cell" data-i="4" aria-label="Vakje 5"></button>
-        <button class="cell" data-i="5" aria-label="Vakje 6"></button>
-        <button class="cell" data-i="6" aria-label="Vakje 7"></button>
-        <button class="cell" data-i="7" aria-label="Vakje 8"></button>
-        <button class="cell" data-i="8" aria-label="Vakje 9"></button>
+    <div class="toolbar">
+      <div class="colors" id="colors"></div>
+
+      <div class="size-row">
+        <label for="size">Dik</label>
+        <input type="range" id="size" min="1" max="60" value="6" aria-label="Penseelgrootte">
+        <div class="size-preview" id="size-preview"><div class="dot"></div></div>
       </div>
-      <div class="winline" id="winline"></div>
+
+      <div class="actions">
+        <button class="btn" id="undo">Ongedaan</button>
+        <button class="btn" id="redo">Opnieuw</button>
+        <button class="btn btn-primary" id="save">Bewaar</button>
+        <button class="btn btn-danger" id="clear">Wissen</button>
+      </div>
     </div>
 
-    <div class="status" id="status">Aan zet: <strong id="turn">✕</strong></div>
-
-    <div class="controls">
-      <button id="reset" type="button">Nieuwe ronde</button>
-      <button id="resetAll" class="primary" type="button">Reset score</button>
-    </div>
+    <footer>Tip: deelicoon in Safari → "Zet op beginscherm" voor fullscreen.</footer>
   </div>
 
-  <script>
-    const board = document.getElementById('board');
-    const cells = Array.from(board.querySelectorAll('.cell'));
-    const statusEl = document.getElementById('status');
-    const turnEl = document.getElementById('turn');
-    const countX = document.getElementById('count-x');
-    const countO = document.getElementById('count-o');
-    const countDraw = document.getElementById('count-draw');
-    const scoreX = document.getElementById('score-x');
-    const scoreO = document.getElementById('score-o');
-    const scoreD = document.getElementById('score-draw');
-    const winline = document.getElementById('winline');
-    const btnReset = document.getElementById('reset');
-    const btnResetAll = document.getElementById('resetAll');
-    const btnMode2p = document.getElementById('mode-2p');
-    const btnModeCpu = document.getElementById('mode-cpu');
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const colorsEl = document.getElementById('colors');
+  const sizeEl = document.getElementById('size');
+  const sizePreview = document.getElementById('size-preview');
+  const sizeDot = sizePreview.querySelector('.dot');
+  const undoBtn = document.getElementById('undo');
+  const redoBtn = document.getElementById('redo');
+  const saveBtn = document.getElementById('save');
+  const clearBtn = document.getElementById('clear');
+  const statusEl = document.getElementById('status');
 
-    const WIN_LINES = [
-      [0,1,2],[3,4,5],[6,7,8],
-      [0,3,6],[1,4,7],[2,5,8],
-      [0,4,8],[2,4,6],
-    ];
+  const PALETTE = [
+    '#000000', '#ffffff', '#ef4444', '#f97316',
+    '#facc15', '#4ade80', '#22d3ee', '#3b82f6',
+    '#a855f7', '#ec4899', '#78350f', '#94a3b8',
+    '#f87171', '#fbbf24',
+  ];
 
-    let state = Array(9).fill(null);
-    let turn = 'X';
-    let scores = { X: 0, O: 0, D: 0 };
-    let mode = '2p';
-    let locked = false;
+  let color = '#000000';
+  let size = 6;
+  let drawing = false;
+  let lastX = 0, lastY = 0;
+  let dpr = 1;
+  let history = [];
+  let redoStack = [];
+  let eraser = false;
+  const MAX_HISTORY = 30;
 
-    function haptic(ms = 10) {
-      if (navigator.vibrate) navigator.vibrate(ms);
-    }
-
-    function setActiveScore() {
-      scoreX.classList.toggle('active', turn === 'X');
-      scoreO.classList.toggle('active', turn === 'O');
-    }
-
-    function render() {
-      cells.forEach((c, i) => {
-        c.classList.remove('x','o','win','disabled');
-        c.innerHTML = '';
-        const v = state[i];
-        if (v) {
-          c.classList.add(v.toLowerCase(), 'disabled');
-          const s = document.createElement('span');
-          s.className = 'mark';
-          s.textContent = v === 'X' ? '✕' : '◯';
-          c.appendChild(s);
-        }
-      });
-      turnEl.textContent = turn === 'X' ? '✕' : '◯';
-      setActiveScore();
-    }
-
-    function checkWinner(s) {
-      for (const line of WIN_LINES) {
-        const [a,b,c] = line;
-        if (s[a] && s[a] === s[b] && s[a] === s[c]) {
-          return { winner: s[a], line };
-        }
-      }
-      if (s.every(Boolean)) return { winner: 'D', line: null };
-      return null;
-    }
-
-    function drawWinLine(line) {
-      if (!line) return;
-      const first = cells[line[0]].getBoundingClientRect();
-      const last = cells[line[2]].getBoundingClientRect();
-      const wrap = board.getBoundingClientRect();
-      const x1 = first.left + first.width / 2 - wrap.left;
-      const y1 = first.top + first.height / 2 - wrap.top;
-      const x2 = last.left + last.width / 2 - wrap.left;
-      const y2 = last.top + last.height / 2 - wrap.top;
-      const dx = x2 - x1, dy = y2 - y1;
-      const len = Math.sqrt(dx*dx + dy*dy);
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-      winline.style.width = len + 'px';
-      winline.style.left = x1 + 'px';
-      winline.style.top = y1 + 'px';
-      winline.style.transform = `rotate(${angle}deg)`;
-      winline.classList.add('show');
-    }
-
-    function clearWinLine() {
-      winline.classList.remove('show');
-      winline.style.width = '0';
-    }
-
-    function highlightWin(line) {
-      if (!line) return;
-      line.forEach(i => cells[i].classList.add('win'));
-      drawWinLine(line);
-    }
-
-    function endRound(result) {
-      locked = true;
-      cells.forEach(c => c.classList.add('disabled'));
-      if (result.winner === 'D') {
-        scores.D++;
-        countDraw.textContent = scores.D;
-        statusEl.innerHTML = '<strong>Gelijkspel!</strong>';
-        scoreD.classList.add('active');
-      } else {
-        scores[result.winner]++;
-        (result.winner === 'X' ? countX : countO).textContent = scores[result.winner];
-        const sym = result.winner === 'X' ? '✕' : '◯';
-        statusEl.innerHTML = `<strong>${sym} wint!</strong>`;
-        highlightWin(result.line);
-        haptic(40);
-      }
-    }
-
-    function place(i, who) {
-      if (locked || state[i]) return false;
-      state[i] = who;
-      render();
-      haptic(8);
-      const result = checkWinner(state);
-      if (result) {
-        endRound(result);
-        return true;
-      }
-      turn = (who === 'X') ? 'O' : 'X';
-      statusEl.innerHTML = 'Aan zet: <strong>' + (turn === 'X' ? '✕' : '◯') + '</strong>';
-      setActiveScore();
-      return true;
-    }
-
-    function onCellClick(e) {
-      const i = Number(e.currentTarget.dataset.i);
-      if (mode === 'cpu' && turn === 'O') return;
-      if (!place(i, turn)) return;
-      if (mode === 'cpu' && !locked && turn === 'O') {
-        setTimeout(cpuMove, 380);
-      }
-    }
-
-    // Minimax voor onverslaanbare AI
-    function minimax(s, who, depth = 0) {
-      const r = checkWinner(s);
-      if (r) {
-        if (r.winner === 'O') return { score: 10 - depth };
-        if (r.winner === 'X') return { score: depth - 10 };
-        return { score: 0 };
-      }
-      const moves = [];
-      for (let i = 0; i < 9; i++) {
-        if (!s[i]) {
-          s[i] = who;
-          const next = minimax(s, who === 'O' ? 'X' : 'O', depth + 1);
-          moves.push({ i, score: next.score });
-          s[i] = null;
-        }
-      }
-      if (who === 'O') {
-        return moves.reduce((a, b) => (b.score > a.score ? b : a));
-      } else {
-        return moves.reduce((a, b) => (b.score < a.score ? b : a));
-      }
-    }
-
-    function cpuMove() {
-      if (locked) return;
-      const best = minimax(state.slice(), 'O');
-      place(best.i, 'O');
-    }
-
-    function resetRound() {
-      state = Array(9).fill(null);
-      turn = 'X';
-      locked = false;
-      scoreD.classList.remove('active');
-      clearWinLine();
-      render();
-      statusEl.innerHTML = 'Aan zet: <strong>✕</strong>';
-    }
-
-    function resetAll() {
-      scores = { X: 0, O: 0, D: 0 };
-      countX.textContent = 0;
-      countO.textContent = 0;
-      countDraw.textContent = 0;
-      resetRound();
-    }
-
-    function setMode(m) {
-      mode = m;
-      btnMode2p.classList.toggle('on', m === '2p');
-      btnModeCpu.classList.toggle('on', m === 'cpu');
-      resetAll();
-    }
-
-    cells.forEach(c => c.addEventListener('click', onCellClick));
-    btnReset.addEventListener('click', resetRound);
-    btnResetAll.addEventListener('click', resetAll);
-    btnMode2p.addEventListener('click', () => setMode('2p'));
-    btnModeCpu.addEventListener('click', () => setMode('cpu'));
-    window.addEventListener('resize', () => {
-      const r = checkWinner(state);
-      if (r && r.line) drawWinLine(r.line);
+  function buildPalette() {
+    PALETTE.forEach(c => {
+      const b = document.createElement('button');
+      b.className = 'swatch-btn';
+      b.style.background = c;
+      b.dataset.color = c;
+      b.setAttribute('aria-label', 'Kleur ' + c);
+      if (c === color) b.classList.add('selected');
+      b.addEventListener('click', () => selectColor(c, b));
+      colorsEl.appendChild(b);
     });
+    const eraserBtn = document.createElement('button');
+    eraserBtn.className = 'swatch-btn eraser';
+    eraserBtn.dataset.eraser = '1';
+    eraserBtn.setAttribute('aria-label', 'Gum');
+    eraserBtn.addEventListener('click', () => selectEraser(eraserBtn));
+    colorsEl.appendChild(eraserBtn);
 
-    render();
-  </script>
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = '#ff00aa';
+    picker.style.cssText = 'width:100%;aspect-ratio:1;border:none;background:none;border-radius:50%;padding:0;cursor:pointer;min-width:30px;';
+    picker.setAttribute('aria-label', 'Eigen kleur');
+    picker.addEventListener('input', e => {
+      color = e.target.value;
+      eraser = false;
+      document.querySelectorAll('.swatch-btn').forEach(s => s.classList.remove('selected'));
+      updateSizePreviewColor();
+    });
+    colorsEl.appendChild(picker);
+  }
+
+  function selectColor(c, btn) {
+    color = c;
+    eraser = false;
+    document.querySelectorAll('.swatch-btn').forEach(s => s.classList.remove('selected'));
+    btn.classList.add('selected');
+    updateSizePreviewColor();
+    vibrate(6);
+  }
+
+  function selectEraser(btn) {
+    eraser = true;
+    document.querySelectorAll('.swatch-btn').forEach(s => s.classList.remove('selected'));
+    btn.classList.add('selected');
+    updateSizePreviewColor();
+    vibrate(6);
+  }
+
+  function updateSizePreviewColor() {
+    sizePreview.style.color = eraser ? '#cbd5e1' : color;
+    updateSizePreview();
+  }
+
+  function updateSizePreview() {
+    const display = Math.max(2, Math.min(28, size));
+    sizeDot.style.width = display + 'px';
+    sizeDot.style.height = display + 'px';
+  }
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const targetW = Math.floor(rect.width * dpr);
+    const targetH = Math.floor(rect.height * dpr);
+    if (canvas.width === targetW && canvas.height === targetH) return;
+    const snapshot = canvas.width ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+    canvas.width = targetW;
+    canvas.height = targetH;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (snapshot) {
+      const tmp = document.createElement('canvas');
+      tmp.width = snapshot.width;
+      tmp.height = snapshot.height;
+      tmp.getContext('2d').putImageData(snapshot, 0, 0);
+      ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height);
+    }
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }
+
+  function pos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return {
+      x: (t.clientX - rect.left) * (canvas.width / rect.width),
+      y: (t.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  }
+
+  function pushHistory() {
+    try {
+      history.push(canvas.toDataURL('image/png'));
+      if (history.length > MAX_HISTORY) history.shift();
+      redoStack = [];
+      updateButtons();
+    } catch (e) {}
+  }
+
+  function start(e) {
+    e.preventDefault();
+    pushHistory();
+    drawing = true;
+    const p = pos(e);
+    lastX = p.x;
+    lastY = p.y;
+    drawDot(p.x, p.y);
+  }
+
+  function move(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const p = pos(e);
+    drawLine(lastX, lastY, p.x, p.y);
+    lastX = p.x;
+    lastY = p.y;
+  }
+
+  function end(e) {
+    if (!drawing) return;
+    e && e.preventDefault();
+    drawing = false;
+  }
+
+  function drawDot(x, y) {
+    ctx.fillStyle = eraser ? '#ffffff' : color;
+    ctx.beginPath();
+    ctx.arc(x, y, (size * dpr) / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawLine(x1, y1, x2, y2) {
+    ctx.strokeStyle = eraser ? '#ffffff' : color;
+    ctx.lineWidth = size * dpr;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  function loadImage(dataUrl) {
+    return new Promise(res => {
+      const img = new Image();
+      img.onload = () => {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        res();
+      };
+      img.src = dataUrl;
+    });
+  }
+
+  async function undo() {
+    if (!history.length) return;
+    const current = canvas.toDataURL('image/png');
+    redoStack.push(current);
+    const prev = history.pop();
+    await loadImage(prev);
+    updateButtons();
+    vibrate(8);
+  }
+
+  async function redo() {
+    if (!redoStack.length) return;
+    const current = canvas.toDataURL('image/png');
+    history.push(current);
+    const next = redoStack.pop();
+    await loadImage(next);
+    updateButtons();
+    vibrate(8);
+  }
+
+  function clear() {
+    pushHistory();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    flashStatus('Doek gewist');
+    vibrate([10, 30, 10]);
+  }
+
+  function save() {
+    try {
+      const link = document.createElement('a');
+      link.download = `tekening-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      flashStatus('Tekening opgeslagen');
+      vibrate(15);
+    } catch (e) {
+      flashStatus('Opslaan mislukt');
+    }
+  }
+
+  function updateButtons() {
+    undoBtn.disabled = !history.length;
+    redoBtn.disabled = !redoStack.length;
+  }
+
+  let statusTimer = 0;
+  function flashStatus(msg) {
+    clearTimeout(statusTimer);
+    statusEl.textContent = msg;
+    statusTimer = setTimeout(() => { statusEl.textContent = 'Teken met je vinger'; }, 1600);
+  }
+
+  function vibrate(p) {
+    if (navigator.vibrate) try { navigator.vibrate(p); } catch (e) {}
+  }
+
+  canvas.addEventListener('pointerdown', start);
+  canvas.addEventListener('pointermove', move);
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+  canvas.addEventListener('pointerleave', end);
+
+  sizeEl.addEventListener('input', e => {
+    size = parseInt(e.target.value, 10);
+    updateSizePreview();
+  });
+
+  undoBtn.addEventListener('click', undo);
+  redoBtn.addEventListener('click', redo);
+  clearBtn.addEventListener('click', clear);
+  saveBtn.addEventListener('click', save);
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 100));
+
+  buildPalette();
+  updateSizePreviewColor();
+  updateButtons();
+  resize();
+})();
+</script>
 </body>
 </html>
