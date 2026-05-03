@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0f172a" />
+<title>Boter, Kaas en Eieren</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    background: radial-gradient(ellipse at top, #1e293b 0%, #0f172a 60%, #020617 100%);
+    color: #f1f5f9;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: max(env(safe-area-inset-top), 16px) 16px max(env(safe-area-inset-bottom), 16px);
+    min-height: 100dvh;
+  }
+  header {
+    width: 100%;
+    text-align: center;
+  }
+  h1 {
+    font-size: clamp(20px, 5.5vw, 28px);
+    margin: 4px 0 2px;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 10px;
+  }
+  .scoreboard {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto 8px;
+  }
+  .score {
+    flex: 1;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 14px;
+    padding: 10px 6px;
+    text-align: center;
+    transition: transform 0.2s, border-color 0.2s, background 0.2s;
+  }
+  .score.active {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    transform: translateY(-2px);
+  }
+  .score .label { font-size: 12px; color: #94a3b8; }
+  .score .player { font-size: 18px; font-weight: 700; margin: 2px 0; }
+  .score.x .player { color: #f472b6; }
+  .score.o .player { color: #38bdf8; }
+  .score .count { font-size: 22px; font-weight: 800; }
+
+  .board-wrap {
+    width: 100%;
+    max-width: min(92vw, 420px);
+    aspect-ratio: 1 / 1;
+    margin: 8px auto;
+    position: relative;
+  }
+  .board {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 8px;
+    background: transparent;
+  }
+  .cell {
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(48px, 14vw, 80px);
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+  }
+  .cell:active { transform: scale(0.96); }
+  .cell.x { color: #f472b6; }
+  .cell.o { color: #38bdf8; }
+  .cell.win {
+    background: rgba(56, 189, 248, 0.18);
+    box-shadow: 0 0 0 2px #38bdf8 inset, 0 0 24px rgba(56, 189, 248, 0.35);
+    animation: pop 0.45s ease;
+  }
+  .cell.x.win {
+    background: rgba(244, 114, 182, 0.18);
+    box-shadow: 0 0 0 2px #f472b6 inset, 0 0 24px rgba(244, 114, 182, 0.35);
+  }
+  .cell.disabled { cursor: default; }
+
+  .mark {
+    display: inline-block;
+    transform: scale(0);
+    animation: appear 0.18s ease forwards;
+  }
+  @keyframes appear {
+    from { transform: scale(0) rotate(-15deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0); opacity: 1; }
+  }
+  @keyframes pop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+
+  .status {
+    width: 100%;
+    text-align: center;
+    font-size: 16px;
+    color: #cbd5e1;
+    min-height: 24px;
+    margin: 4px 0 8px;
+  }
+  .status strong { color: #f8fafc; }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  button {
+    flex: 1;
+    appearance: none;
+    border: none;
+    border-radius: 14px;
+    padding: 14px 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #f8fafc;
+    background: rgba(51, 65, 85, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    cursor: pointer;
+    transition: transform 0.1s, background 0.2s;
+    font-family: inherit;
+  }
+  button:active { transform: scale(0.97); }
+  button.primary {
+    background: linear-gradient(135deg, #38bdf8, #6366f1);
+    border-color: transparent;
+  }
+
+  .mode-switch {
+    display: flex;
+    background: rgba(30, 41, 59, 0.7);
+    border-radius: 12px;
+    padding: 4px;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto 8px;
+    border: 1px solid rgba(148, 163, 184, 0.15);
+  }
+  .mode-switch button {
+    flex: 1;
+    padding: 10px;
+    font-size: 13px;
+    border-radius: 9px;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+  }
+  .mode-switch button.on {
+    background: rgba(56, 189, 248, 0.15);
+    color: #f8fafc;
+  }
+
+  .winline {
+    position: absolute;
+    background: linear-gradient(90deg, #f472b6, #38bdf8);
+    height: 6px;
+    border-radius: 6px;
+    top: 50%;
+    left: 0;
+    transform-origin: 0 50%;
+    box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .winline.show { opacity: 1; }
+</style>
+</head>
+<body>
+  <a href="../../" aria-label="Terug naar menu" style="position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:calc(env(safe-area-inset-left,0px) + 10px);z-index:9999;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.85);border:1px solid rgba(148,163,184,0.25);border-radius:50%;color:#f1f5f9;text-decoration:none;font-size:22px;line-height:1;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);">‹</a>
+  <header>
+    <h1>Boter, Kaas &amp; Eieren</h1>
+    <div class="subtitle">Drie op een rij wint</div>
+  </header>
+
+  <div style="width:100%;">
+    <div class="mode-switch" role="tablist" aria-label="Spelmodus">
+      <button id="mode-2p" class="on" type="button">2 Spelers</button>
+      <button id="mode-cpu" type="button">Tegen Computer</button>
+    </div>
+
+    <div class="scoreboard">
+      <div class="score x active" id="score-x">
+        <div class="label">Speler</div>
+        <div class="player">✕</div>
+        <div class="count" id="count-x">0</div>
+      </div>
+      <div class="score" id="score-draw">
+        <div class="label">Gelijk</div>
+        <div class="player">—</div>
+        <div class="count" id="count-draw">0</div>
+      </div>
+      <div class="score o" id="score-o">
+        <div class="label">Speler</div>
+        <div class="player">◯</div>
+        <div class="count" id="count-o">0</div>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board" aria-label="Speelbord">
+        <button class="cell" data-i="0" aria-label="Vakje 1"></button>
+        <button class="cell" data-i="1" aria-label="Vakje 2"></button>
+        <button class="cell" data-i="2" aria-label="Vakje 3"></button>
+        <button class="cell" data-i="3" aria-label="Vakje 4"></button>
+        <button class="cell" data-i="4" aria-label="Vakje 5"></button>
+        <button class="cell" data-i="5" aria-label="Vakje 6"></button>
+        <button class="cell" data-i="6" aria-label="Vakje 7"></button>
+        <button class="cell" data-i="7" aria-label="Vakje 8"></button>
+        <button class="cell" data-i="8" aria-label="Vakje 9"></button>
+      </div>
+      <div class="winline" id="winline"></div>
+    </div>
+
+    <div class="status" id="status">Aan zet: <strong id="turn">✕</strong></div>
+
+    <div class="controls">
+      <button id="reset" type="button">Nieuwe ronde</button>
+      <button id="resetAll" class="primary" type="button">Reset score</button>
+    </div>
+  </div>
+
+  <script>
+    const board = document.getElementById('board');
+    const cells = Array.from(board.querySelectorAll('.cell'));
+    const statusEl = document.getElementById('status');
+    const turnEl = document.getElementById('turn');
+    const countX = document.getElementById('count-x');
+    const countO = document.getElementById('count-o');
+    const countDraw = document.getElementById('count-draw');
+    const scoreX = document.getElementById('score-x');
+    const scoreO = document.getElementById('score-o');
+    const scoreD = document.getElementById('score-draw');
+    const winline = document.getElementById('winline');
+    const btnReset = document.getElementById('reset');
+    const btnResetAll = document.getElementById('resetAll');
+    const btnMode2p = document.getElementById('mode-2p');
+    const btnModeCpu = document.getElementById('mode-cpu');
+
+    const WIN_LINES = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6],
+    ];
+
+    let state = Array(9).fill(null);
+    let turn = 'X';
+    let scores = { X: 0, O: 0, D: 0 };
+    let mode = '2p';
+    let locked = false;
+
+    function haptic(ms = 10) {
+      if (navigator.vibrate) navigator.vibrate(ms);
+    }
+
+    function setActiveScore() {
+      scoreX.classList.toggle('active', turn === 'X');
+      scoreO.classList.toggle('active', turn === 'O');
+    }
+
+    function render() {
+      cells.forEach((c, i) => {
+        c.classList.remove('x','o','win','disabled');
+        c.innerHTML = '';
+        const v = state[i];
+        if (v) {
+          c.classList.add(v.toLowerCase(), 'disabled');
+          const s = document.createElement('span');
+          s.className = 'mark';
+          s.textContent = v === 'X' ? '✕' : '◯';
+          c.appendChild(s);
+        }
+      });
+      turnEl.textContent = turn === 'X' ? '✕' : '◯';
+      setActiveScore();
+    }
+
+    function checkWinner(s) {
+      for (const line of WIN_LINES) {
+        const [a,b,c] = line;
+        if (s[a] && s[a] === s[b] && s[a] === s[c]) {
+          return { winner: s[a], line };
+        }
+      }
+      if (s.every(Boolean)) return { winner: 'D', line: null };
+      return null;
+    }
+
+    function drawWinLine(line) {
+      if (!line) return;
+      const first = cells[line[0]].getBoundingClientRect();
+      const last = cells[line[2]].getBoundingClientRect();
+      const wrap = board.getBoundingClientRect();
+      const x1 = first.left + first.width / 2 - wrap.left;
+      const y1 = first.top + first.height / 2 - wrap.top;
+      const x2 = last.left + last.width / 2 - wrap.left;
+      const y2 = last.top + last.height / 2 - wrap.top;
+      const dx = x2 - x1, dy = y2 - y1;
+      const len = Math.sqrt(dx*dx + dy*dy);
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      winline.style.width = len + 'px';
+      winline.style.left = x1 + 'px';
+      winline.style.top = y1 + 'px';
+      winline.style.transform = `rotate(${angle}deg)`;
+      winline.classList.add('show');
+    }
+
+    function clearWinLine() {
+      winline.classList.remove('show');
+      winline.style.width = '0';
+    }
+
+    function highlightWin(line) {
+      if (!line) return;
+      line.forEach(i => cells[i].classList.add('win'));
+      drawWinLine(line);
+    }
+
+    function endRound(result) {
+      locked = true;
+      cells.forEach(c => c.classList.add('disabled'));
+      if (result.winner === 'D') {
+        scores.D++;
+        countDraw.textContent = scores.D;
+        statusEl.innerHTML = '<strong>Gelijkspel!</strong>';
+        scoreD.classList.add('active');
+      } else {
+        scores[result.winner]++;
+        (result.winner === 'X' ? countX : countO).textContent = scores[result.winner];
+        const sym = result.winner === 'X' ? '✕' : '◯';
+        statusEl.innerHTML = `<strong>${sym} wint!</strong>`;
+        highlightWin(result.line);
+        haptic(40);
+      }
+    }
+
+    function place(i, who) {
+      if (locked || state[i]) return false;
+      state[i] = who;
+      render();
+      haptic(8);
+      const result = checkWinner(state);
+      if (result) {
+        endRound(result);
+        return true;
+      }
+      turn = (who === 'X') ? 'O' : 'X';
+      statusEl.innerHTML = 'Aan zet: <strong>' + (turn === 'X' ? '✕' : '◯') + '</strong>';
+      setActiveScore();
+      return true;
+    }
+
+    function onCellClick(e) {
+      const i = Number(e.currentTarget.dataset.i);
+      if (mode === 'cpu' && turn === 'O') return;
+      if (!place(i, turn)) return;
+      if (mode === 'cpu' && !locked && turn === 'O') {
+        setTimeout(cpuMove, 380);
+      }
+    }
+
+    // Minimax voor onverslaanbare AI
+    function minimax(s, who, depth = 0) {
+      const r = checkWinner(s);
+      if (r) {
+        if (r.winner === 'O') return { score: 10 - depth };
+        if (r.winner === 'X') return { score: depth - 10 };
+        return { score: 0 };
+      }
+      const moves = [];
+      for (let i = 0; i < 9; i++) {
+        if (!s[i]) {
+          s[i] = who;
+          const next = minimax(s, who === 'O' ? 'X' : 'O', depth + 1);
+          moves.push({ i, score: next.score });
+          s[i] = null;
+        }
+      }
+      if (who === 'O') {
+        return moves.reduce((a, b) => (b.score > a.score ? b : a));
+      } else {
+        return moves.reduce((a, b) => (b.score < a.score ? b : a));
+      }
+    }
+
+    function cpuMove() {
+      if (locked) return;
+      const best = minimax(state.slice(), 'O');
+      place(best.i, 'O');
+    }
+
+    function resetRound() {
+      state = Array(9).fill(null);
+      turn = 'X';
+      locked = false;
+      scoreD.classList.remove('active');
+      clearWinLine();
+      render();
+      statusEl.innerHTML = 'Aan zet: <strong>✕</strong>';
+    }
+
+    function resetAll() {
+      scores = { X: 0, O: 0, D: 0 };
+      countX.textContent = 0;
+      countO.textContent = 0;
+      countDraw.textContent = 0;
+      resetRound();
+    }
+
+    function setMode(m) {
+      mode = m;
+      btnMode2p.classList.toggle('on', m === '2p');
+      btnModeCpu.classList.toggle('on', m === 'cpu');
+      resetAll();
+    }
+
+    cells.forEach(c => c.addEventListener('click', onCellClick));
+    btnReset.addEventListener('click', resetRound);
+    btnResetAll.addEventListener('click', resetAll);
+    btnMode2p.addEventListener('click', () => setMode('2p'));
+    btnModeCpu.addEventListener('click', () => setMode('cpu'));
+    window.addEventListener('resize', () => {
+      const r = checkWinner(state);
+      if (r && r.line) drawWinLine(r.line);
+    });
+
+    render();
+  </script>
+</body>
+</html>

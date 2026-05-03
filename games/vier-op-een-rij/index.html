@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vier op een rij">
+<meta name="theme-color" content="#0b1220">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Vier op een rij</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg: #0b1220;
+    --bg-2: #111a2e;
+    --board: #1e3a8a;
+    --board-2: #1e40af;
+    --hole: #0b1220;
+    --p1: #ef4444;
+    --p1-2: #b91c1c;
+    --p2: #facc15;
+    --p2-2: #ca8a04;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --pad: clamp(8px, 2vw, 16px);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: radial-gradient(ellipse at top, #1a2547 0%, var(--bg) 60%), var(--bg);
+    display: flex;
+    justify-content: center;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 520px;
+    min-height: 100dvh;
+    padding:
+      calc(var(--pad) + var(--safe-top))
+      calc(var(--pad) + var(--safe-right))
+      calc(var(--pad) + var(--safe-bot))
+      calc(var(--pad) + var(--safe-left));
+    display: flex;
+    flex-direction: column;
+    gap: var(--pad);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(1.05rem, 4.2vw, 1.5rem);
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+
+  .scoreboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .score-card {
+    background: var(--bg-2);
+    border: 1px solid #1f2a48;
+    padding: 8px 10px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .score-card.active {
+    border-color: currentColor;
+    box-shadow: 0 0 0 2px currentColor inset, 0 0 18px rgba(255,255,255,0.05);
+  }
+  .score-card .chip {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.25), inset 0 2px 0 rgba(255,255,255,0.2);
+  }
+  .score-card.p1 { color: var(--p1); }
+  .score-card.p2 { color: var(--p2); }
+  .score-card.p1 .chip { background: radial-gradient(circle at 30% 30%, #fca5a5, var(--p1) 60%, var(--p1-2)); }
+  .score-card.p2 .chip { background: radial-gradient(circle at 30% 30%, #fde68a, var(--p2) 60%, var(--p2-2)); }
+  .score-card .meta { display: flex; flex-direction: column; line-height: 1.1; }
+  .score-card .name { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .score-card .val { font-size: 1.1rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  .status {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    min-height: 1.2em;
+  }
+  .status strong { color: var(--text); }
+
+  .board-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+
+  .board {
+    width: 100%;
+    max-width: min(94vw, 64dvh);
+    aspect-ratio: 7 / 6;
+    background: linear-gradient(135deg, var(--board), var(--board-2));
+    border-radius: 18px;
+    padding: 2.5%;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    gap: 1.5%;
+    position: relative;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.05) inset,
+      0 20px 50px rgba(0,0,0,0.4),
+      0 0 80px rgba(30,64,175,0.2);
+    touch-action: none;
+  }
+
+  .cell {
+    position: relative;
+    background: var(--hole);
+    border-radius: 50%;
+    box-shadow: inset 0 4px 6px rgba(0,0,0,0.5), inset 0 -2px 2px rgba(255,255,255,0.05);
+    overflow: hidden;
+  }
+
+  .disc {
+    position: absolute;
+    inset: 4%;
+    border-radius: 50%;
+    transform: translateY(-700%);
+    animation: drop 0.42s cubic-bezier(0.5, 0.02, 0.7, 1) forwards;
+    box-shadow:
+      inset 0 -4px 0 rgba(0,0,0,0.28),
+      inset 0 3px 0 rgba(255,255,255,0.2);
+  }
+  .disc.p1 { background: radial-gradient(circle at 30% 30%, #fca5a5, var(--p1) 55%, var(--p1-2)); }
+  .disc.p2 { background: radial-gradient(circle at 30% 30%, #fde68a, var(--p2) 55%, var(--p2-2)); }
+  .disc.win {
+    animation: drop 0.42s cubic-bezier(0.5, 0.02, 0.7, 1) forwards, glow 1.2s ease-in-out infinite;
+  }
+  @keyframes drop {
+    0% { transform: translateY(-700%); }
+    70% { transform: translateY(8%); }
+    85% { transform: translateY(-3%); }
+    100% { transform: translateY(0); }
+  }
+  @keyframes glow {
+    0%, 100% { box-shadow: inset 0 -4px 0 rgba(0,0,0,0.28), inset 0 3px 0 rgba(255,255,255,0.2), 0 0 0 0 rgba(255,255,255,0); }
+    50%      { box-shadow: inset 0 -4px 0 rgba(0,0,0,0.28), inset 0 3px 0 rgba(255,255,255,0.4), 0 0 18px 4px rgba(255,255,255,0.45); }
+  }
+
+  .col-hit {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: calc((100% - 5%) / 7);
+    cursor: pointer;
+  }
+  .col-hit.hover::before {
+    content: '';
+    position: absolute;
+    top: -8%;
+    left: 8%;
+    right: 8%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--hint);
+    opacity: 0.85;
+    pointer-events: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  }
+  .board[data-turn="1"] { --hint: radial-gradient(circle at 30% 30%, #fca5a5, var(--p1) 55%, var(--p1-2)); }
+  .board[data-turn="2"] { --hint: radial-gradient(circle at 30% 30%, #fde68a, var(--p2) 55%, var(--p2-2)); }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+  .btn {
+    flex: 1;
+    background: var(--bg-2);
+    color: var(--text);
+    border: 1px solid #1f2a48;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    min-height: 44px;
+    cursor: pointer;
+    transition: transform 0.05s ease, background 0.15s ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: linear-gradient(135deg, #4ade80, #22c55e);
+    color: #062012;
+    border: none;
+  }
+
+  .toggle {
+    display: flex;
+    background: var(--bg-2);
+    border: 1px solid #1f2a48;
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .toggle button {
+    flex: 1;
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 36px;
+  }
+  .toggle button.active {
+    background: #1a2547;
+    color: var(--text);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.7rem;
+    opacity: 0.6;
+  }
+
+  @media (max-height: 680px) {
+    .board { max-width: min(80vw, 56dvh); }
+  }
+</style>
+</head>
+<body>
+  <a href="../../" aria-label="Terug naar menu" style="position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:calc(env(safe-area-inset-left,0px) + 10px);z-index:9999;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(17,26,46,0.85);border:1px solid #1f2a48;border-radius:50%;color:#e5e7eb;text-decoration:none;font-size:22px;line-height:1;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);">‹</a>
+  <div class="app">
+    <header>
+      <h1>Vier op een rij</h1>
+      <div class="toggle" role="tablist" aria-label="Modus">
+        <button id="mode-pvp" class="active" role="tab" aria-selected="true">2 spelers</button>
+        <button id="mode-cpu" role="tab" aria-selected="false">vs CPU</button>
+      </div>
+    </header>
+
+    <div class="scoreboard">
+      <div class="score-card p1 active" id="sc-p1">
+        <div class="chip"></div>
+        <div class="meta">
+          <div class="name" id="name-p1">Rood</div>
+          <div class="val" id="score-p1">0</div>
+        </div>
+      </div>
+      <div class="score-card p2" id="sc-p2">
+        <div class="chip"></div>
+        <div class="meta">
+          <div class="name" id="name-p2">Geel</div>
+          <div class="val" id="score-p2">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status" id="status"><strong>Rood</strong> begint — kies een kolom</div>
+
+    <div class="board-wrap">
+      <div class="board" id="board" data-turn="1" aria-label="Speelbord"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="undo-btn">Ongedaan</button>
+      <button class="btn btn-primary" id="reset-btn">Nieuw potje</button>
+    </div>
+
+    <footer>Tip: deelicoon in Safari → "Zet op beginscherm" voor fullscreen.</footer>
+  </div>
+
+<script>
+(() => {
+  const ROWS = 6, COLS = 7;
+  const board = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+  const sc1 = document.getElementById('sc-p1');
+  const sc2 = document.getElementById('sc-p2');
+  const score1El = document.getElementById('score-p1');
+  const score2El = document.getElementById('score-p2');
+  const name1El = document.getElementById('name-p1');
+  const name2El = document.getElementById('name-p2');
+  const undoBtn = document.getElementById('undo-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const modePvp = document.getElementById('mode-pvp');
+  const modeCpu = document.getElementById('mode-cpu');
+
+  const STORAGE_KEY = 'connect4_v1';
+
+  let grid, cells, turn, history, scores, gameOver, mode, cpuThinking;
+
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  scores = { 1: saved.s1 || 0, 2: saved.s2 || 0 };
+  mode = saved.mode === 'cpu' ? 'cpu' : 'pvp';
+  applyMode();
+  renderScores();
+
+  function applyMode() {
+    modePvp.classList.toggle('active', mode === 'pvp');
+    modePvp.setAttribute('aria-selected', mode === 'pvp');
+    modeCpu.classList.toggle('active', mode === 'cpu');
+    modeCpu.setAttribute('aria-selected', mode === 'cpu');
+    name1El.textContent = mode === 'cpu' ? 'Jij' : 'Rood';
+    name2El.textContent = mode === 'cpu' ? 'CPU' : 'Geel';
+  }
+
+  function persist() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ s1: scores[1], s2: scores[2], mode }));
+  }
+
+  function reset() {
+    grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    turn = 1;
+    history = [];
+    gameOver = false;
+    cpuThinking = false;
+    board.innerHTML = '';
+    cells = [];
+    for (let r = 0; r < ROWS; r++) {
+      cells[r] = [];
+      for (let c = 0; c < COLS; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        board.appendChild(cell);
+        cells[r][c] = cell;
+      }
+    }
+    for (let c = 0; c < COLS; c++) {
+      const hit = document.createElement('div');
+      hit.className = 'col-hit';
+      hit.dataset.col = c;
+      hit.style.left = `calc(2.5% + ${c} * (100% - 5%) / 7)`;
+      hit.addEventListener('click', () => tryPlay(c));
+      hit.addEventListener('pointerenter', () => hoverCol(c, true));
+      hit.addEventListener('pointerleave', () => hoverCol(c, false));
+      board.appendChild(hit);
+    }
+    board.dataset.turn = turn;
+    updateStatus();
+    updateActiveChip();
+  }
+
+  function hoverCol(c, on) {
+    const hits = board.querySelectorAll('.col-hit');
+    hits.forEach(h => {
+      if (parseInt(h.dataset.col) === c) h.classList.toggle('hover', on && !gameOver && canPlay(c) && !(mode === 'cpu' && turn === 2));
+    });
+  }
+
+  function canPlay(c) { return grid[0][c] === 0; }
+
+  function dropRow(c) {
+    for (let r = ROWS - 1; r >= 0; r--) if (grid[r][c] === 0) return r;
+    return -1;
+  }
+
+  function tryPlay(c) {
+    if (gameOver || cpuThinking) return;
+    if (mode === 'cpu' && turn === 2) return;
+    play(c);
+  }
+
+  function play(c) {
+    const r = dropRow(c);
+    if (r === -1) return false;
+    grid[r][c] = turn;
+    history.push({ r, c, p: turn });
+
+    const disc = document.createElement('div');
+    disc.className = 'disc p' + turn;
+    cells[r][c].appendChild(disc);
+
+    vibrate(12);
+
+    const win = findWin(r, c, turn);
+    if (win) {
+      gameOver = true;
+      win.forEach(([wr, wc]) => {
+        const d = cells[wr][wc].querySelector('.disc');
+        if (d) d.classList.add('win');
+      });
+      scores[turn] += 1;
+      renderScores();
+      persist();
+      statusEl.innerHTML = `<strong>${playerName(turn)}</strong> wint!`;
+      vibrate([20, 40, 20, 40, 60]);
+      return true;
+    }
+
+    if (history.length === ROWS * COLS) {
+      gameOver = true;
+      statusEl.textContent = 'Gelijkspel — niemand wint';
+      vibrate([20, 40, 20]);
+      return true;
+    }
+
+    turn = turn === 1 ? 2 : 1;
+    board.dataset.turn = turn;
+    updateStatus();
+    updateActiveChip();
+
+    if (mode === 'cpu' && turn === 2 && !gameOver) {
+      cpuThinking = true;
+      setTimeout(() => {
+        const move = pickCpuMove();
+        cpuThinking = false;
+        if (move != null) play(move);
+      }, 380);
+    }
+    return true;
+  }
+
+  function undo() {
+    if (gameOver) {
+      gameOver = false;
+      board.querySelectorAll('.disc.win').forEach(d => d.classList.remove('win'));
+    }
+    const last = history.pop();
+    if (!last) return;
+    grid[last.r][last.c] = 0;
+    const disc = cells[last.r][last.c].querySelector('.disc');
+    if (disc) disc.remove();
+    turn = last.p;
+    if (mode === 'cpu' && turn === 2) {
+      const prev = history.pop();
+      if (prev) {
+        grid[prev.r][prev.c] = 0;
+        const d2 = cells[prev.r][prev.c].querySelector('.disc');
+        if (d2) d2.remove();
+        turn = prev.p;
+      }
+    }
+    board.dataset.turn = turn;
+    updateStatus();
+    updateActiveChip();
+    vibrate(8);
+  }
+
+  function findWin(r, c, p) {
+    const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+    for (const [dr, dc] of dirs) {
+      const line = [[r, c]];
+      for (let k = 1; k < 4; k++) {
+        const nr = r + dr*k, nc = c + dc*k;
+        if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || grid[nr][nc] !== p) break;
+        line.push([nr, nc]);
+      }
+      for (let k = 1; k < 4; k++) {
+        const nr = r - dr*k, nc = c - dc*k;
+        if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || grid[nr][nc] !== p) break;
+        line.unshift([nr, nc]);
+      }
+      if (line.length >= 4) return line.slice(0, 4);
+    }
+    return null;
+  }
+
+  function simulateWin(p, c) {
+    const r = dropRow(c);
+    if (r === -1) return false;
+    grid[r][c] = p;
+    const w = findWin(r, c, p);
+    grid[r][c] = 0;
+    return !!w;
+  }
+
+  function pickCpuMove() {
+    const cols = [];
+    for (let c = 0; c < COLS; c++) if (canPlay(c)) cols.push(c);
+    if (!cols.length) return null;
+
+    for (const c of cols) if (simulateWin(2, c)) return c;
+    for (const c of cols) if (simulateWin(1, c)) return c;
+
+    const safe = cols.filter(c => {
+      const r = dropRow(c);
+      if (r <= 0) return true;
+      grid[r][c] = 2;
+      let opponentWins = false;
+      for (const oc of cols) {
+        if (simulateWin(1, oc)) { opponentWins = true; break; }
+      }
+      grid[r][c] = 0;
+      return !opponentWins;
+    });
+
+    const pool = safe.length ? safe : cols;
+    const center = 3;
+    pool.sort((a, b) => Math.abs(a - center) - Math.abs(b - center));
+    const top = pool.slice(0, Math.min(3, pool.length));
+    return top[Math.floor(Math.random() * top.length)];
+  }
+
+  function playerName(p) {
+    if (mode === 'cpu') return p === 1 ? 'Jij' : 'CPU';
+    return p === 1 ? 'Rood' : 'Geel';
+  }
+
+  function updateStatus() {
+    if (gameOver) return;
+    statusEl.innerHTML = `Aan de beurt: <strong>${playerName(turn)}</strong>`;
+  }
+
+  function updateActiveChip() {
+    sc1.classList.toggle('active', turn === 1 && !gameOver);
+    sc2.classList.toggle('active', turn === 2 && !gameOver);
+  }
+
+  function renderScores() {
+    score1El.textContent = scores[1];
+    score2El.textContent = scores[2];
+  }
+
+  function vibrate(p) {
+    if (navigator.vibrate) try { navigator.vibrate(p); } catch (e) {}
+  }
+
+  undoBtn.addEventListener('click', undo);
+  resetBtn.addEventListener('click', () => { reset(); vibrate(10); });
+
+  modePvp.addEventListener('click', () => { if (mode !== 'pvp') { mode = 'pvp'; applyMode(); persist(); reset(); }});
+  modeCpu.addEventListener('click', () => { if (mode !== 'cpu') { mode = 'cpu'; applyMode(); persist(); reset(); }});
+
+  reset();
+})();
+</script>
+</body>
+</html>

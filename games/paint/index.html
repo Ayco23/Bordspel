@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Paint">
+<meta name="theme-color" content="#0b1220">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Paint</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg: #0b1220;
+    --bg-2: #111a2e;
+    --panel: #131e3a;
+    --border: #1f2a48;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --accent: #4ade80;
+    --accent-2: #22c55e;
+    --pad: clamp(8px, 2vw, 14px);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+  body {
+    min-height: 100dvh;
+    background: radial-gradient(ellipse at top, #1a2547 0%, var(--bg) 60%), var(--bg);
+    display: flex;
+    justify-content: center;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 600px;
+    min-height: 100dvh;
+    padding:
+      calc(var(--pad) + var(--safe-top))
+      calc(var(--pad) + var(--safe-right))
+      calc(var(--pad) + var(--safe-bot))
+      calc(var(--pad) + var(--safe-left));
+    display: flex;
+    flex-direction: column;
+    gap: var(--pad);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  h1 .swatch {
+    width: 18px; height: 18px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #f43f5e, #f59e0b 35%, #4ade80 65%, #38bdf8);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+
+  .status {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.82rem;
+    min-height: 1.2em;
+  }
+
+  .canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+  .canvas-card {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: min(94vw, 58dvh);
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow:
+      0 0 0 1px var(--border) inset,
+      0 20px 50px rgba(0,0,0,0.4);
+    overflow: hidden;
+    touch-action: none;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+  }
+
+  .toolbar {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .colors {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+    width: 100%;
+  }
+  .swatch-btn {
+    aspect-ratio: 1;
+    min-width: 30px;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.08s ease;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.3);
+  }
+  .swatch-btn:active { transform: scale(0.9); }
+  .swatch-btn.selected {
+    border-color: var(--text);
+    box-shadow:
+      inset 0 -2px 0 rgba(0,0,0,0.15),
+      0 0 0 2px var(--bg-2),
+      0 0 0 4px var(--text);
+  }
+  .swatch-btn.eraser {
+    background: repeating-conic-gradient(#cbd5e1 0% 25%, #f8fafc 0% 50%) 50% / 10px 10px;
+  }
+
+  .size-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+  }
+  .size-row label {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .size-preview {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .size-preview .dot {
+    background: currentColor;
+    border-radius: 50%;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 28px;
+    background: transparent;
+    margin: 0;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 3px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px; height: 22px;
+    margin-top: -8px;
+    background: #fff;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px;
+    background: #fff;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .btn {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    min-height: 44px;
+    cursor: pointer;
+    transition: transform 0.05s ease, background 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-danger { color: #fca5a5; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #062012;
+    border: none;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.7rem;
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+  <a href="../../" aria-label="Terug naar menu" style="position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:calc(env(safe-area-inset-left,0px) + 10px);z-index:9999;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(17,26,46,0.85);border:1px solid #1f2a48;border-radius:50%;color:#e5e7eb;text-decoration:none;font-size:22px;line-height:1;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);">‹</a>
+  <div class="app">
+    <header>
+      <h1><span class="swatch"></span>Paint</h1>
+      <div class="status" id="status">Teken met je vinger</div>
+    </header>
+
+    <div class="canvas-wrap">
+      <div class="canvas-card">
+        <canvas id="canvas"></canvas>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="colors" id="colors"></div>
+
+      <div class="size-row">
+        <label for="size">Dik</label>
+        <input type="range" id="size" min="1" max="60" value="6" aria-label="Penseelgrootte">
+        <div class="size-preview" id="size-preview"><div class="dot"></div></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="undo">Ongedaan</button>
+        <button class="btn" id="redo">Opnieuw</button>
+        <button class="btn btn-primary" id="save">Bewaar</button>
+        <button class="btn btn-danger" id="clear">Wissen</button>
+      </div>
+    </div>
+
+    <footer>Tip: deelicoon in Safari → "Zet op beginscherm" voor fullscreen.</footer>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const colorsEl = document.getElementById('colors');
+  const sizeEl = document.getElementById('size');
+  const sizePreview = document.getElementById('size-preview');
+  const sizeDot = sizePreview.querySelector('.dot');
+  const undoBtn = document.getElementById('undo');
+  const redoBtn = document.getElementById('redo');
+  const saveBtn = document.getElementById('save');
+  const clearBtn = document.getElementById('clear');
+  const statusEl = document.getElementById('status');
+
+  const PALETTE = [
+    '#000000', '#ffffff', '#ef4444', '#f97316',
+    '#facc15', '#4ade80', '#22d3ee', '#3b82f6',
+    '#a855f7', '#ec4899', '#78350f', '#94a3b8',
+    '#f87171', '#fbbf24',
+  ];
+
+  let color = '#000000';
+  let size = 6;
+  let drawing = false;
+  let lastX = 0, lastY = 0;
+  let dpr = 1;
+  let history = [];
+  let redoStack = [];
+  let eraser = false;
+  const MAX_HISTORY = 30;
+
+  function buildPalette() {
+    PALETTE.forEach(c => {
+      const b = document.createElement('button');
+      b.className = 'swatch-btn';
+      b.style.background = c;
+      b.dataset.color = c;
+      b.setAttribute('aria-label', 'Kleur ' + c);
+      if (c === color) b.classList.add('selected');
+      b.addEventListener('click', () => selectColor(c, b));
+      colorsEl.appendChild(b);
+    });
+    const eraserBtn = document.createElement('button');
+    eraserBtn.className = 'swatch-btn eraser';
+    eraserBtn.dataset.eraser = '1';
+    eraserBtn.setAttribute('aria-label', 'Gum');
+    eraserBtn.addEventListener('click', () => selectEraser(eraserBtn));
+    colorsEl.appendChild(eraserBtn);
+
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = '#ff00aa';
+    picker.style.cssText = 'width:100%;aspect-ratio:1;border:none;background:none;border-radius:50%;padding:0;cursor:pointer;min-width:30px;';
+    picker.setAttribute('aria-label', 'Eigen kleur');
+    picker.addEventListener('input', e => {
+      color = e.target.value;
+      eraser = false;
+      document.querySelectorAll('.swatch-btn').forEach(s => s.classList.remove('selected'));
+      updateSizePreviewColor();
+    });
+    colorsEl.appendChild(picker);
+  }
+
+  function selectColor(c, btn) {
+    color = c;
+    eraser = false;
+    document.querySelectorAll('.swatch-btn').forEach(s => s.classList.remove('selected'));
+    btn.classList.add('selected');
+    updateSizePreviewColor();
+    vibrate(6);
+  }
+
+  function selectEraser(btn) {
+    eraser = true;
+    document.querySelectorAll('.swatch-btn').forEach(s => s.classList.remove('selected'));
+    btn.classList.add('selected');
+    updateSizePreviewColor();
+    vibrate(6);
+  }
+
+  function updateSizePreviewColor() {
+    sizePreview.style.color = eraser ? '#cbd5e1' : color;
+    updateSizePreview();
+  }
+
+  function updateSizePreview() {
+    const display = Math.max(2, Math.min(28, size));
+    sizeDot.style.width = display + 'px';
+    sizeDot.style.height = display + 'px';
+  }
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const targetW = Math.floor(rect.width * dpr);
+    const targetH = Math.floor(rect.height * dpr);
+    if (canvas.width === targetW && canvas.height === targetH) return;
+    const snapshot = canvas.width ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+    canvas.width = targetW;
+    canvas.height = targetH;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (snapshot) {
+      const tmp = document.createElement('canvas');
+      tmp.width = snapshot.width;
+      tmp.height = snapshot.height;
+      tmp.getContext('2d').putImageData(snapshot, 0, 0);
+      ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height);
+    }
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }
+
+  function pos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return {
+      x: (t.clientX - rect.left) * (canvas.width / rect.width),
+      y: (t.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  }
+
+  function pushHistory() {
+    try {
+      history.push(canvas.toDataURL('image/png'));
+      if (history.length > MAX_HISTORY) history.shift();
+      redoStack = [];
+      updateButtons();
+    } catch (e) {}
+  }
+
+  function start(e) {
+    e.preventDefault();
+    pushHistory();
+    drawing = true;
+    const p = pos(e);
+    lastX = p.x;
+    lastY = p.y;
+    drawDot(p.x, p.y);
+  }
+
+  function move(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const p = pos(e);
+    drawLine(lastX, lastY, p.x, p.y);
+    lastX = p.x;
+    lastY = p.y;
+  }
+
+  function end(e) {
+    if (!drawing) return;
+    e && e.preventDefault();
+    drawing = false;
+  }
+
+  function drawDot(x, y) {
+    ctx.fillStyle = eraser ? '#ffffff' : color;
+    ctx.beginPath();
+    ctx.arc(x, y, (size * dpr) / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawLine(x1, y1, x2, y2) {
+    ctx.strokeStyle = eraser ? '#ffffff' : color;
+    ctx.lineWidth = size * dpr;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  function loadImage(dataUrl) {
+    return new Promise(res => {
+      const img = new Image();
+      img.onload = () => {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        res();
+      };
+      img.src = dataUrl;
+    });
+  }
+
+  async function undo() {
+    if (!history.length) return;
+    const current = canvas.toDataURL('image/png');
+    redoStack.push(current);
+    const prev = history.pop();
+    await loadImage(prev);
+    updateButtons();
+    vibrate(8);
+  }
+
+  async function redo() {
+    if (!redoStack.length) return;
+    const current = canvas.toDataURL('image/png');
+    history.push(current);
+    const next = redoStack.pop();
+    await loadImage(next);
+    updateButtons();
+    vibrate(8);
+  }
+
+  function clear() {
+    pushHistory();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    flashStatus('Doek gewist');
+    vibrate([10, 30, 10]);
+  }
+
+  function save() {
+    try {
+      const link = document.createElement('a');
+      link.download = `tekening-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      flashStatus('Tekening opgeslagen');
+      vibrate(15);
+    } catch (e) {
+      flashStatus('Opslaan mislukt');
+    }
+  }
+
+  function updateButtons() {
+    undoBtn.disabled = !history.length;
+    redoBtn.disabled = !redoStack.length;
+  }
+
+  let statusTimer = 0;
+  function flashStatus(msg) {
+    clearTimeout(statusTimer);
+    statusEl.textContent = msg;
+    statusTimer = setTimeout(() => { statusEl.textContent = 'Teken met je vinger'; }, 1600);
+  }
+
+  function vibrate(p) {
+    if (navigator.vibrate) try { navigator.vibrate(p); } catch (e) {}
+  }
+
+  canvas.addEventListener('pointerdown', start);
+  canvas.addEventListener('pointermove', move);
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+  canvas.addEventListener('pointerleave', end);
+
+  sizeEl.addEventListener('input', e => {
+    size = parseInt(e.target.value, 10);
+    updateSizePreview();
+  });
+
+  undoBtn.addEventListener('click', undo);
+  redoBtn.addEventListener('click', redo);
+  clearBtn.addEventListener('click', clear);
+  saveBtn.addEventListener('click', save);
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 100));
+
+  buildPalette();
+  updateSizePreviewColor();
+  updateButtons();
+  resize();
+})();
+</script>
+</body>
+</html>
