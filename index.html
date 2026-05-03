@@ -1,471 +1,598 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="theme-color" content="#0f172a" />
-<title>Boter, Kaas en Eieren</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Snake">
+<meta name="theme-color" content="#0b1220">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Snake</title>
 <style>
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  *,
+  *::before,
+  *::after { box-sizing: border-box; }
+
+  :root {
+    --bg: #0b1220;
+    --bg-2: #111a2e;
+    --grid: #0f1830;
+    --grid-2: #131e3a;
+    --accent: #4ade80;
+    --accent-2: #22c55e;
+    --apple: #ef4444;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --pad: clamp(8px, 2vw, 16px);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
   html, body {
     margin: 0;
     padding: 0;
     height: 100%;
-    overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    background: radial-gradient(ellipse at top, #1e293b 0%, #0f172a 60%, #020617 100%);
-    color: #f1f5f9;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
+    overscroll-behavior: none;
     touch-action: manipulation;
   }
+
   body {
+    min-height: 100dvh;
+    background:
+      radial-gradient(ellipse at top, #1a2547 0%, var(--bg) 60%),
+      var(--bg);
+    display: flex;
+    justify-content: center;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 520px;
+    min-height: 100dvh;
+    padding:
+      calc(var(--pad) + var(--safe-top))
+      calc(var(--pad) + var(--safe-right))
+      calc(var(--pad) + var(--safe-bot))
+      calc(var(--pad) + var(--safe-left));
+    display: flex;
+    flex-direction: column;
+    gap: var(--pad);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.1rem, 4.5vw, 1.6rem);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  h1 .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.7; }
+  }
+
+  .scores { display: flex; gap: 8px; }
+  .score-card {
+    background: var(--bg-2);
+    border: 1px solid #1f2a48;
+    padding: 6px 10px;
+    border-radius: 10px;
+    text-align: center;
+    min-width: 64px;
+  }
+  .score-card .label {
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .score-card .value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .board-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+  .board {
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    max-width: min(92vw, 60dvh);
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--grid), var(--grid-2));
+    box-shadow:
+      0 0 0 1px #1f2a48 inset,
+      0 20px 50px rgba(0,0,0,0.4),
+      0 0 80px rgba(74,222,128,0.05);
+    position: relative;
+    overflow: hidden;
+    touch-action: none;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    padding: max(env(safe-area-inset-top), 16px) 16px max(env(safe-area-inset-bottom), 16px);
-    min-height: 100dvh;
-  }
-  header {
-    width: 100%;
-    text-align: center;
-  }
-  h1 {
-    font-size: clamp(20px, 5.5vw, 28px);
-    margin: 4px 0 2px;
-    letter-spacing: 0.5px;
-    font-weight: 700;
-  }
-  .subtitle {
-    font-size: 13px;
-    color: #94a3b8;
-    margin-bottom: 10px;
-  }
-  .scoreboard {
-    display: flex;
     justify-content: center;
-    gap: 10px;
-    width: 100%;
-    max-width: 420px;
-    margin: 0 auto 8px;
-  }
-  .score {
-    flex: 1;
-    background: rgba(30, 41, 59, 0.7);
-    border: 1px solid rgba(148, 163, 184, 0.15);
-    border-radius: 14px;
-    padding: 10px 6px;
+    gap: 14px;
+    background: rgba(11, 18, 32, 0.78);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: opacity 0.2s ease;
     text-align: center;
-    transition: transform 0.2s, border-color 0.2s, background 0.2s;
+    padding: 20px;
   }
-  .score.active {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.12);
-    transform: translateY(-2px);
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+  .overlay h2 {
+    margin: 0;
+    font-size: clamp(1.4rem, 6vw, 2rem);
   }
-  .score .label { font-size: 12px; color: #94a3b8; }
-  .score .player { font-size: 18px; font-weight: 700; margin: 2px 0; }
-  .score.x .player { color: #f472b6; }
-  .score.o .player { color: #38bdf8; }
-  .score .count { font-size: 22px; font-weight: 800; }
-
-  .board-wrap {
-    width: 100%;
-    max-width: min(92vw, 420px);
-    aspect-ratio: 1 / 1;
-    margin: 8px auto;
-    position: relative;
-  }
-  .board {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 8px;
-    background: transparent;
-  }
-  .cell {
-    background: rgba(30, 41, 59, 0.85);
-    border: 1px solid rgba(148, 163, 184, 0.15);
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: clamp(48px, 14vw, 80px);
-    font-weight: 800;
-    cursor: pointer;
-    transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
-    position: relative;
-  }
-  .cell:active { transform: scale(0.96); }
-  .cell.x { color: #f472b6; }
-  .cell.o { color: #38bdf8; }
-  .cell.win {
-    background: rgba(56, 189, 248, 0.18);
-    box-shadow: 0 0 0 2px #38bdf8 inset, 0 0 24px rgba(56, 189, 248, 0.35);
-    animation: pop 0.45s ease;
-  }
-  .cell.x.win {
-    background: rgba(244, 114, 182, 0.18);
-    box-shadow: 0 0 0 2px #f472b6 inset, 0 0 24px rgba(244, 114, 182, 0.35);
-  }
-  .cell.disabled { cursor: default; }
-
-  .mark {
-    display: inline-block;
-    transform: scale(0);
-    animation: appear 0.18s ease forwards;
-  }
-  @keyframes appear {
-    from { transform: scale(0) rotate(-15deg); opacity: 0; }
-    to   { transform: scale(1) rotate(0); opacity: 1; }
-  }
-  @keyframes pop {
-    0%   { transform: scale(1); }
-    50%  { transform: scale(1.06); }
-    100% { transform: scale(1); }
+  .overlay p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: 280px;
+    line-height: 1.4;
   }
 
   .status {
-    width: 100%;
     text-align: center;
-    font-size: 16px;
-    color: #cbd5e1;
-    min-height: 24px;
-    margin: 4px 0 8px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    min-height: 1.2em;
   }
-  .status strong { color: #f8fafc; }
 
-  .controls {
-    display: flex;
-    gap: 10px;
-    width: 100%;
-    max-width: 420px;
+  .dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 8px;
+    aspect-ratio: 3 / 2;
+    max-width: 320px;
     margin: 0 auto;
-  }
-  button {
-    flex: 1;
-    appearance: none;
-    border: none;
-    border-radius: 14px;
-    padding: 14px 12px;
-    font-size: 15px;
-    font-weight: 600;
-    color: #f8fafc;
-    background: rgba(51, 65, 85, 0.85);
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    cursor: pointer;
-    transition: transform 0.1s, background 0.2s;
-    font-family: inherit;
-  }
-  button:active { transform: scale(0.97); }
-  button.primary {
-    background: linear-gradient(135deg, #38bdf8, #6366f1);
-    border-color: transparent;
-  }
-
-  .mode-switch {
-    display: flex;
-    background: rgba(30, 41, 59, 0.7);
-    border-radius: 12px;
-    padding: 4px;
     width: 100%;
-    max-width: 420px;
-    margin: 0 auto 8px;
-    border: 1px solid rgba(148, 163, 184, 0.15);
   }
-  .mode-switch button {
+  .dpad button {
+    background: var(--bg-2);
+    border: 1px solid #1f2a48;
+    color: var(--text);
+    border-radius: 12px;
+    font-size: 1.4rem;
+    min-height: 44px;
+    min-width: 44px;
+    transition: transform 0.05s ease, background 0.15s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dpad button:active { transform: scale(0.94); background: #1a2547; }
+  .dpad .up    { grid-column: 2; grid-row: 1; }
+  .dpad .left  { grid-column: 1; grid-row: 2; }
+  .dpad .down  { grid-column: 2; grid-row: 2; }
+  .dpad .right { grid-column: 3; grid-row: 2; }
+
+  .actions { display: flex; gap: 10px; justify-content: center; }
+  .btn {
     flex: 1;
-    padding: 10px;
-    font-size: 13px;
-    border-radius: 9px;
-    background: transparent;
-    border: none;
-    color: #94a3b8;
+    background: var(--bg-2);
+    color: var(--text);
+    border: 1px solid #1f2a48;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    min-height: 44px;
+    cursor: pointer;
+    transition: transform 0.05s ease, background 0.15s ease;
   }
-  .mode-switch button.on {
-    background: rgba(56, 189, 248, 0.15);
-    color: #f8fafc;
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #062012;
+    border: none;
+    max-width: 220px;
+  }
+  .btn-primary:active { background: var(--accent-2); }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.7rem;
+    opacity: 0.6;
   }
 
-  .winline {
-    position: absolute;
-    background: linear-gradient(90deg, #f472b6, #38bdf8);
-    height: 6px;
-    border-radius: 6px;
-    top: 50%;
-    left: 0;
-    transform-origin: 0 50%;
-    box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s;
+  @media (max-height: 640px) {
+    .board { max-width: min(70vw, 50dvh); }
+    .dpad { aspect-ratio: 3 / 1.5; max-width: 280px; }
   }
-  .winline.show { opacity: 1; }
 </style>
 </head>
 <body>
-  <header>
-    <h1>Boter, Kaas &amp; Eieren</h1>
-    <div class="subtitle">Drie op een rij wint</div>
-  </header>
+  <div class="app">
+    <header>
+      <h1><span class="dot"></span>Snake</h1>
+      <div class="scores">
+        <div class="score-card">
+          <div class="label">Score</div>
+          <div class="value" id="score">0</div>
+        </div>
+        <div class="score-card">
+          <div class="label">Best</div>
+          <div class="value" id="best">0</div>
+        </div>
+      </div>
+    </header>
 
-  <div style="width:100%;">
-    <div class="mode-switch" role="tablist" aria-label="Spelmodus">
-      <button id="mode-2p" class="on" type="button">2 Spelers</button>
-      <button id="mode-cpu" type="button">Tegen Computer</button>
-    </div>
-
-    <div class="scoreboard">
-      <div class="score x active" id="score-x">
-        <div class="label">Speler</div>
-        <div class="player">✕</div>
-        <div class="count" id="count-x">0</div>
-      </div>
-      <div class="score" id="score-draw">
-        <div class="label">Gelijk</div>
-        <div class="player">—</div>
-        <div class="count" id="count-draw">0</div>
-      </div>
-      <div class="score o" id="score-o">
-        <div class="label">Speler</div>
-        <div class="player">◯</div>
-        <div class="count" id="count-o">0</div>
-      </div>
-    </div>
+    <div class="status" id="status">Veeg of gebruik de pijlen om te starten</div>
 
     <div class="board-wrap">
-      <div class="board" id="board" aria-label="Speelbord">
-        <button class="cell" data-i="0" aria-label="Vakje 1"></button>
-        <button class="cell" data-i="1" aria-label="Vakje 2"></button>
-        <button class="cell" data-i="2" aria-label="Vakje 3"></button>
-        <button class="cell" data-i="3" aria-label="Vakje 4"></button>
-        <button class="cell" data-i="4" aria-label="Vakje 5"></button>
-        <button class="cell" data-i="5" aria-label="Vakje 6"></button>
-        <button class="cell" data-i="6" aria-label="Vakje 7"></button>
-        <button class="cell" data-i="7" aria-label="Vakje 8"></button>
-        <button class="cell" data-i="8" aria-label="Vakje 9"></button>
+      <div class="board" id="board">
+        <canvas id="canvas"></canvas>
+        <div class="overlay" id="overlay">
+          <h2 id="overlay-title">Klaar?</h2>
+          <p id="overlay-text">Veeg over het bord of tik op een pijl om te starten.</p>
+          <button class="btn btn-primary" id="start-btn">Start</button>
+        </div>
       </div>
-      <div class="winline" id="winline"></div>
     </div>
 
-    <div class="status" id="status">Aan zet: <strong id="turn">✕</strong></div>
-
-    <div class="controls">
-      <button id="reset" type="button">Nieuwe ronde</button>
-      <button id="resetAll" class="primary" type="button">Reset score</button>
+    <div class="dpad" aria-label="Bestuur de slang">
+      <button class="up"    data-dir="up"    aria-label="Omhoog">▲</button>
+      <button class="left"  data-dir="left"  aria-label="Links">◀</button>
+      <button class="down"  data-dir="down"  aria-label="Omlaag">▼</button>
+      <button class="right" data-dir="right" aria-label="Rechts">▶</button>
     </div>
+
+    <div class="actions">
+      <button class="btn" id="pause-btn">Pauze</button>
+      <button class="btn btn-primary" id="reset-btn">Opnieuw</button>
+    </div>
+
+    <footer>Tip: deelicoon in Safari → "Zet op beginscherm" voor fullscreen.</footer>
   </div>
 
-  <script>
-    const board = document.getElementById('board');
-    const cells = Array.from(board.querySelectorAll('.cell'));
-    const statusEl = document.getElementById('status');
-    const turnEl = document.getElementById('turn');
-    const countX = document.getElementById('count-x');
-    const countO = document.getElementById('count-o');
-    const countDraw = document.getElementById('count-draw');
-    const scoreX = document.getElementById('score-x');
-    const scoreO = document.getElementById('score-o');
-    const scoreD = document.getElementById('score-draw');
-    const winline = document.getElementById('winline');
-    const btnReset = document.getElementById('reset');
-    const btnResetAll = document.getElementById('resetAll');
-    const btnMode2p = document.getElementById('mode-2p');
-    const btnModeCpu = document.getElementById('mode-cpu');
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const statusEl = document.getElementById('status');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayText = document.getElementById('overlay-text');
+  const startBtn = document.getElementById('start-btn');
+  const pauseBtn = document.getElementById('pause-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const board = document.getElementById('board');
 
-    const WIN_LINES = [
-      [0,1,2],[3,4,5],[6,7,8],
-      [0,3,6],[1,4,7],[2,5,8],
-      [0,4,8],[2,4,6],
+  const GRID = 18;
+  const STORAGE_KEY = 'snake_best_v1';
+
+  let cellSize = 0;
+  let snake, dir, nextDir, apple, score, best, alive, paused, started, tickMs, lastTick, growthQueued, eatPulse;
+
+  best = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10) || 0;
+  bestEl.textContent = best;
+
+  function resize() {
+    const rect = board.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    cellSize = canvas.width / GRID;
+    ctx.imageSmoothingEnabled = false;
+    draw();
+  }
+
+  function reset() {
+    const mid = Math.floor(GRID / 2);
+    snake = [
+      { x: mid - 1, y: mid },
+      { x: mid - 2, y: mid },
+      { x: mid - 3, y: mid },
     ];
+    dir = { x: 1, y: 0 };
+    nextDir = { x: 1, y: 0 };
+    score = 0;
+    alive = true;
+    paused = false;
+    started = false;
+    tickMs = 140;
+    lastTick = 0;
+    growthQueued = 0;
+    eatPulse = 0;
+    placeApple();
+    updateScore();
+    pauseBtn.textContent = 'Pauze';
+    statusEl.textContent = 'Veeg of gebruik de pijlen om te starten';
+    showOverlay('Klaar?', 'Veeg over het bord of tik op een pijl om te starten.', 'Start');
+    draw();
+  }
 
-    let state = Array(9).fill(null);
-    let turn = 'X';
-    let scores = { X: 0, O: 0, D: 0 };
-    let mode = '2p';
-    let locked = false;
-
-    function haptic(ms = 10) {
-      if (navigator.vibrate) navigator.vibrate(ms);
-    }
-
-    function setActiveScore() {
-      scoreX.classList.toggle('active', turn === 'X');
-      scoreO.classList.toggle('active', turn === 'O');
-    }
-
-    function render() {
-      cells.forEach((c, i) => {
-        c.classList.remove('x','o','win','disabled');
-        c.innerHTML = '';
-        const v = state[i];
-        if (v) {
-          c.classList.add(v.toLowerCase(), 'disabled');
-          const s = document.createElement('span');
-          s.className = 'mark';
-          s.textContent = v === 'X' ? '✕' : '◯';
-          c.appendChild(s);
-        }
-      });
-      turnEl.textContent = turn === 'X' ? '✕' : '◯';
-      setActiveScore();
-    }
-
-    function checkWinner(s) {
-      for (const line of WIN_LINES) {
-        const [a,b,c] = line;
-        if (s[a] && s[a] === s[b] && s[a] === s[c]) {
-          return { winner: s[a], line };
-        }
-      }
-      if (s.every(Boolean)) return { winner: 'D', line: null };
-      return null;
-    }
-
-    function drawWinLine(line) {
-      if (!line) return;
-      const first = cells[line[0]].getBoundingClientRect();
-      const last = cells[line[2]].getBoundingClientRect();
-      const wrap = board.getBoundingClientRect();
-      const x1 = first.left + first.width / 2 - wrap.left;
-      const y1 = first.top + first.height / 2 - wrap.top;
-      const x2 = last.left + last.width / 2 - wrap.left;
-      const y2 = last.top + last.height / 2 - wrap.top;
-      const dx = x2 - x1, dy = y2 - y1;
-      const len = Math.sqrt(dx*dx + dy*dy);
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-      winline.style.width = len + 'px';
-      winline.style.left = x1 + 'px';
-      winline.style.top = y1 + 'px';
-      winline.style.transform = `rotate(${angle}deg)`;
-      winline.classList.add('show');
-    }
-
-    function clearWinLine() {
-      winline.classList.remove('show');
-      winline.style.width = '0';
-    }
-
-    function highlightWin(line) {
-      if (!line) return;
-      line.forEach(i => cells[i].classList.add('win'));
-      drawWinLine(line);
-    }
-
-    function endRound(result) {
-      locked = true;
-      cells.forEach(c => c.classList.add('disabled'));
-      if (result.winner === 'D') {
-        scores.D++;
-        countDraw.textContent = scores.D;
-        statusEl.innerHTML = '<strong>Gelijkspel!</strong>';
-        scoreD.classList.add('active');
-      } else {
-        scores[result.winner]++;
-        (result.winner === 'X' ? countX : countO).textContent = scores[result.winner];
-        const sym = result.winner === 'X' ? '✕' : '◯';
-        statusEl.innerHTML = `<strong>${sym} wint!</strong>`;
-        highlightWin(result.line);
-        haptic(40);
+  function placeApple() {
+    while (true) {
+      const a = { x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID) };
+      if (!snake.some(s => s.x === a.x && s.y === a.y)) {
+        apple = a;
+        return;
       }
     }
+  }
 
-    function place(i, who) {
-      if (locked || state[i]) return false;
-      state[i] = who;
-      render();
-      haptic(8);
-      const result = checkWinner(state);
-      if (result) {
-        endRound(result);
-        return true;
-      }
-      turn = (who === 'X') ? 'O' : 'X';
-      statusEl.innerHTML = 'Aan zet: <strong>' + (turn === 'X' ? '✕' : '◯') + '</strong>';
-      setActiveScore();
-      return true;
+  function setDirection(d) {
+    if (!alive) return;
+    if (!started) {
+      started = true;
+      hideOverlay();
+      statusEl.textContent = 'Pak de rode appels!';
+    }
+    if (paused) return;
+    if ((d.x === -dir.x && d.y === -dir.y) || (d.x === 0 && d.y === 0)) return;
+    nextDir = d;
+  }
+
+  function tick(ts) {
+    if (!lastTick) lastTick = ts;
+    const delta = ts - lastTick;
+    if (started && alive && !paused && delta >= tickMs) {
+      lastTick = ts;
+      step();
+    }
+    if (eatPulse > 0) eatPulse = Math.max(0, eatPulse - 0.06);
+    draw();
+    requestAnimationFrame(tick);
+  }
+
+  function step() {
+    dir = nextDir;
+    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+    if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) return die();
+    for (let i = 0; i < snake.length - 1; i++) {
+      if (snake[i].x === head.x && snake[i].y === head.y) return die();
     }
 
-    function onCellClick(e) {
-      const i = Number(e.currentTarget.dataset.i);
-      if (mode === 'cpu' && turn === 'O') return;
-      if (!place(i, turn)) return;
-      if (mode === 'cpu' && !locked && turn === 'O') {
-        setTimeout(cpuMove, 380);
-      }
+    snake.unshift(head);
+
+    if (head.x === apple.x && head.y === apple.y) {
+      score++;
+      growthQueued += 1;
+      eatPulse = 1;
+      vibrate(15);
+      if (tickMs > 70) tickMs -= 3;
+      placeApple();
+      updateScore();
     }
 
-    // Minimax voor onverslaanbare AI
-    function minimax(s, who, depth = 0) {
-      const r = checkWinner(s);
-      if (r) {
-        if (r.winner === 'O') return { score: 10 - depth };
-        if (r.winner === 'X') return { score: depth - 10 };
-        return { score: 0 };
-      }
-      const moves = [];
-      for (let i = 0; i < 9; i++) {
-        if (!s[i]) {
-          s[i] = who;
-          const next = minimax(s, who === 'O' ? 'X' : 'O', depth + 1);
-          moves.push({ i, score: next.score });
-          s[i] = null;
+    if (growthQueued > 0) growthQueued--;
+    else snake.pop();
+  }
+
+  function die() {
+    alive = false;
+    vibrate([30, 60, 30]);
+    if (score > best) {
+      best = score;
+      localStorage.setItem(STORAGE_KEY, String(best));
+      bestEl.textContent = best;
+      showOverlay('Nieuw record!', `Je at ${score} appels en zette een nieuw record neer.`, 'Opnieuw spelen');
+    } else {
+      showOverlay('Game over', `Je at ${score} ${score === 1 ? 'appel' : 'appels'}.`, 'Opnieuw spelen');
+    }
+    statusEl.textContent = 'Tik op opnieuw om door te gaan';
+  }
+
+  function updateScore() { scoreEl.textContent = score; }
+
+  function showOverlay(title, text, btnLabel) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    startBtn.textContent = btnLabel;
+    overlay.classList.remove('hidden');
+  }
+  function hideOverlay() { overlay.classList.add('hidden'); }
+
+  function vibrate(pattern) {
+    if (navigator.vibrate) try { navigator.vibrate(pattern); } catch (e) {}
+  }
+
+  function draw() {
+    if (!canvas.width) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let y = 0; y < GRID; y++) {
+      for (let x = 0; x < GRID; x++) {
+        if ((x + y) % 2 === 0) {
+          ctx.fillStyle = 'rgba(255,255,255,0.018)';
+          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         }
       }
-      if (who === 'O') {
-        return moves.reduce((a, b) => (b.score > a.score ? b : a));
-      } else {
-        return moves.reduce((a, b) => (b.score < a.score ? b : a));
+    }
+
+    const ax = apple.x * cellSize + cellSize / 2;
+    const ay = apple.y * cellSize + cellSize / 2;
+    const r = cellSize * 0.38;
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = cellSize * 0.6;
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(ax, ay, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath();
+    ctx.arc(ax - r * 0.3, ay - r * 0.3, r * 0.25, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (let i = snake.length - 1; i >= 0; i--) {
+      const s = snake[i];
+      const isHead = i === 0;
+      const t = i / Math.max(1, snake.length - 1);
+      const px = s.x * cellSize;
+      const py = s.y * cellSize;
+      const pad = cellSize * 0.08;
+      const radius = cellSize * 0.28;
+
+      const r1 = isHead ? 74 : Math.round(34 + (74 - 34) * (1 - t));
+      const g1 = isHead ? 222 : Math.round(197 + (222 - 197) * (1 - t));
+      const b1 = isHead ? 128 : Math.round(94 + (128 - 94) * (1 - t));
+      ctx.fillStyle = `rgb(${r1}, ${g1}, ${b1})`;
+
+      if (isHead && eatPulse > 0) {
+        ctx.shadowColor = '#4ade80';
+        ctx.shadowBlur = cellSize * eatPulse;
+      }
+
+      roundRect(ctx, px + pad, py + pad, cellSize - pad * 2, cellSize - pad * 2, radius);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      if (isHead) {
+        ctx.fillStyle = '#062012';
+        const eyeSize = cellSize * 0.08;
+        const offX = dir.x * cellSize * 0.18;
+        const offY = dir.y * cellSize * 0.18;
+        const cx = px + cellSize / 2;
+        const cy = py + cellSize / 2;
+        const perpX = -dir.y * cellSize * 0.18;
+        const perpY = dir.x * cellSize * 0.18;
+        ctx.beginPath();
+        ctx.arc(cx + offX + perpX, cy + offY + perpY, eyeSize, 0, Math.PI * 2);
+        ctx.arc(cx + offX - perpX, cy + offY - perpY, eyeSize, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
+  }
 
-    function cpuMove() {
-      if (locked) return;
-      const best = minimax(state.slice(), 'O');
-      place(best.i, 'O');
-    }
+  function roundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
 
-    function resetRound() {
-      state = Array(9).fill(null);
-      turn = 'X';
-      locked = false;
-      scoreD.classList.remove('active');
-      clearWinLine();
-      render();
-      statusEl.innerHTML = 'Aan zet: <strong>✕</strong>';
-    }
-
-    function resetAll() {
-      scores = { X: 0, O: 0, D: 0 };
-      countX.textContent = 0;
-      countO.textContent = 0;
-      countDraw.textContent = 0;
-      resetRound();
-    }
-
-    function setMode(m) {
-      mode = m;
-      btnMode2p.classList.toggle('on', m === '2p');
-      btnModeCpu.classList.toggle('on', m === 'cpu');
-      resetAll();
-    }
-
-    cells.forEach(c => c.addEventListener('click', onCellClick));
-    btnReset.addEventListener('click', resetRound);
-    btnResetAll.addEventListener('click', resetAll);
-    btnMode2p.addEventListener('click', () => setMode('2p'));
-    btnModeCpu.addEventListener('click', () => setMode('cpu'));
-    window.addEventListener('resize', () => {
-      const r = checkWinner(state);
-      if (r && r.line) drawWinLine(r.line);
+  document.querySelectorAll('.dpad button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const d = btn.dataset.dir;
+      if (d === 'up') setDirection({ x: 0, y: -1 });
+      if (d === 'down') setDirection({ x: 0, y: 1 });
+      if (d === 'left') setDirection({ x: -1, y: 0 });
+      if (d === 'right') setDirection({ x: 1, y: 0 });
+      vibrate(8);
     });
+  });
 
-    render();
-  </script>
+  window.addEventListener('keydown', e => {
+    const k = e.key;
+    if (k === 'ArrowUp' || k === 'w') setDirection({ x: 0, y: -1 });
+    else if (k === 'ArrowDown' || k === 's') setDirection({ x: 0, y: 1 });
+    else if (k === 'ArrowLeft' || k === 'a') setDirection({ x: -1, y: 0 });
+    else if (k === 'ArrowRight' || k === 'd') setDirection({ x: 1, y: 0 });
+    else if (k === ' ') togglePause();
+    else return;
+    e.preventDefault();
+  });
+
+  let touchStart = null;
+  board.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    touchStart = { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+
+  board.addEventListener('touchmove', e => {
+    if (!touchStart || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dx = t.clientX - touchStart.x;
+    const dy = t.clientY - touchStart.y;
+    const threshold = 22;
+    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      setDirection({ x: dx > 0 ? 1 : -1, y: 0 });
+    } else {
+      setDirection({ x: 0, y: dy > 0 ? 1 : -1 });
+    }
+    touchStart = { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+
+  board.addEventListener('touchend', () => { touchStart = null; }, { passive: true });
+
+  startBtn.addEventListener('click', () => {
+    if (!alive) reset();
+    started = true;
+    paused = false;
+    pauseBtn.textContent = 'Pauze';
+    hideOverlay();
+    statusEl.textContent = 'Pak de rode appels!';
+    vibrate(10);
+  });
+
+  resetBtn.addEventListener('click', () => {
+    reset();
+    vibrate(10);
+  });
+
+  pauseBtn.addEventListener('click', togglePause);
+
+  function togglePause() {
+    if (!started || !alive) return;
+    paused = !paused;
+    pauseBtn.textContent = paused ? 'Verder' : 'Pauze';
+    if (paused) {
+      showOverlay('Pauze', 'Tik op verder om door te spelen.', 'Verder');
+    } else {
+      hideOverlay();
+      lastTick = 0;
+    }
+    vibrate(10);
+  }
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 100));
+
+  reset();
+  resize();
+  requestAnimationFrame(tick);
+})();
+</script>
 </body>
 </html>
